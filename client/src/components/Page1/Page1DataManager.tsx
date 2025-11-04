@@ -28,12 +28,12 @@ export class Page1DataManager {
   // Helper function to check if a row is empty (has only default values)
   isEmptyRow = (row: TicketRow): boolean => {
     return (
-      !row.IncidentNumber &&
-      !row.LongDescription &&
-      !row.ServiceOwner &&
-      !row.Priority &&
-      (!row.OpenDate || row.OpenDate === '') &&
-      (!row.UpdatedDate || row.UpdatedDate === '')
+      !row.incidentNumber &&
+      !row.longDescription &&
+      !row.serviceOwner &&
+      !row.priority &&
+      (!row.openDate || row.openDate === '') &&
+      (!row.updatedDate || row.updatedDate === '')
     );
   };
 
@@ -43,8 +43,8 @@ export class Page1DataManager {
     const duplicates = new Map<string, number[]>();
     
     data.forEach((row, index) => {
-      if (row.IncidentNumber && row.IncidentNumber.trim() !== '') {
-        const incidentNumber = row.IncidentNumber.trim();
+      if (row.incidentNumber && row.incidentNumber.trim() !== '') {
+        const incidentNumber = row.incidentNumber.trim();
         if (incidentNumberMap.has(incidentNumber)) {
           const existingIndexes = incidentNumberMap.get(incidentNumber) || [];
           const updatedIndexes = [...existingIndexes, index + 1]; // 1-based for user display
@@ -83,15 +83,15 @@ export class Page1DataManager {
   isRowComplete = (row: TicketRow): boolean => {
     // Define required fields - adjust based on your business rules
     const requiredFields: (keyof TicketRow)[] = [
-      'IncidentNumber',
-      'AssignedGroup', 
-      'LongDescription',
-      'Team_Fixed_Issue',
-      'Team_Included_in_Ticket',
-      'ServiceOwner',
-      'Priority',
-      'OpenDate',
-      'UpdatedDate'
+      'incidentNumber',
+      'assignedGroup', 
+      'longDescription',
+      'teamFixedIssue',
+      'teamIncludedInTicket',
+      'serviceOwner',
+      'priority',
+      'openDate',
+      'updatedDate'
     ];
 
     return requiredFields.every(field => {
@@ -108,31 +108,31 @@ export class Page1DataManager {
       const missingFields: string[] = [];
       
       // Check each required field
-      if (!row.IncidentNumber || row.IncidentNumber.trim() === '') {
+      if (!row.incidentNumber || row.incidentNumber.trim() === '') {
         missingFields.push('Incident Number');
       }
-      if (!row.AssignedGroup || row.AssignedGroup.trim() === '') {
+      if (!row.assignedGroup || row.assignedGroup.trim() === '') {
         missingFields.push('Assigned Group');
       }
-      if (!row.LongDescription || row.LongDescription.trim() === '') {
+      if (!row.longDescription || row.longDescription.trim() === '') {
         missingFields.push('Long Description');
       }
-      if (!row.Team_Fixed_Issue || row.Team_Fixed_Issue.trim() === '') {
+      if (!row.teamFixedIssue || row.teamFixedIssue.trim() === '') {
         missingFields.push('Team Fixed Issue');
       }
-      if (!row.Team_Included_in_Ticket || row.Team_Included_in_Ticket.trim() === '') {
+      if (!row.teamIncludedInTicket || row.teamIncludedInTicket.trim() === '') {
         missingFields.push('Team Included in Ticket');
       }
-      if (!row.ServiceOwner || row.ServiceOwner.trim() === '') {
+      if (!row.serviceOwner || row.serviceOwner.trim() === '') {
         missingFields.push('Service Owner');
       }
-      if (!row.Priority || row.Priority.trim() === '') {
+      if (!row.priority || row.priority.trim() === '') {
         missingFields.push('Priority');
       }
-      if (!row.OpenDate || row.OpenDate.trim() === '') {
+      if (!row.openDate || row.openDate.trim() === '') {
         missingFields.push('Open Date');
       }
-      if (!row.UpdatedDate || row.UpdatedDate.trim() === '') {
+      if (!row.updatedDate || row.updatedDate.trim() === '') {
         missingFields.push('Updated Date');
       }
       
@@ -279,7 +279,7 @@ export class Page1DataManager {
         let errorReason = '';
         let method = 'UNKNOWN';
         const originalId = validatedData[index].id;
-        const originalIncidentNumber = validatedData[index].IncidentNumber || 'No Incident Number';
+        const originalIncidentNumber = validatedData[index].incidentNumber || 'No Incident Number';
         
         // Process response
         if (backendResponse && typeof backendResponse === 'object') {

@@ -22,17 +22,13 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import type { IncidentDetails } from '../../services/dataService';
+import type { TicketRow } from '../../types';
 import { dataService } from '../../services/dataService';
 import { useSnackbar } from './snackbar';
 
-interface IncidentQueryTableProps {
-  onIncidentSelect?: (incident: IncidentDetails) => void;
-}
-
-const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelect }) => {
+const IncidentQueryTable: React.FC = () => {
   const [incidentNumber, setIncidentNumber] = useState('');
-  const [searchResults, setSearchResults] = useState<IncidentDetails[]>([]);
+  const [searchResults, setSearchResults] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
   
@@ -103,18 +99,26 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
     }
   };
 
-  const handleRowClick = (incident: IncidentDetails) => {
-    if (onIncidentSelect) {
-      console.log('🎯 Loading incident for editing:', incident.incidentNumber);
-      onIncidentSelect(incident);
-      showSnackbar(`Incident ${incident.incidentNumber} loaded for editing!`, 'success', 3000);
-    }
+  // UPDATED: Better value checking function
+  const hasValue = (value: any): boolean => {
+    return value !== null && value !== undefined && value !== '' && String(value).trim() !== '';
+  };
+
+  // UPDATED: Get display value with proper fallback
+  const getDisplayValue = (value: any): string => {
+    return hasValue(value) ? String(value).trim() : 'N/A';
   };
 
   const formatDateTime = (dateString: string): string => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      
       return date.toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
@@ -125,6 +129,7 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
         hour12: true
       });
     } catch (error) {
+      console.error('Date formatting error:', error, 'for date:', dateString);
       return 'Invalid Date';
     }
   };
@@ -181,8 +186,7 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
         </Box>
 
         <Alert severity="info" sx={{ mb: 2 }}>
-          Search for incidents by incident number. Returns ALL matching records. 
-          {onIncidentSelect && ' Click on any row to load the incident for editing.'}
+          Search for incidents by incident number. Returns ALL matching records.
         </Alert>
       </Paper>
 
@@ -206,7 +210,7 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
                   <TableCell sx={{ fontWeight: 'bold', width: 120 }}>Service Owner</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', width: 80 }}>Priority</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', width: 150 }}>Team Fixed Issue</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', width: 150 }}>Team Included</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', width: 150 }}>Team Included in Ticket</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', width: 180 }}>Open Date</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', width: 180 }}>Updated Date</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', minWidth: 300 }}>Long Description</TableCell>
@@ -216,16 +220,7 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
               <TableBody>
                 {searchResults.length > 0 ? (
                   searchResults.map((incident) => (
-                    <TableRow 
-                      key={incident.id}
-                      sx={{ 
-                        '&:hover': {
-                          backgroundColor: onIncidentSelect ? 'action.hover' : 'inherit',
-                          cursor: onIncidentSelect ? 'pointer' : 'default'
-                        }
-                      }}
-                      onClick={() => handleRowClick(incident)}
-                    >
+                    <TableRow key={incident.id}>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-all' }}>
                           {incident.id}
@@ -233,17 +228,17 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
-                          {incident.incidentNumber}
+                          {getDisplayValue(incident.incidentNumber)}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {incident.assignedGroup || 'N/A'}
+                          {getDisplayValue(incident.assignedGroup)}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {incident.serviceOwner || 'N/A'}
+                          {getDisplayValue(incident.serviceOwner)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -256,24 +251,26 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
                             backgroundColor: 
                               incident.priority === 'P1' ? 'error.light' :
                               incident.priority === 'P2' ? 'warning.light' :
-                              incident.priority === 'P3' ? 'info.light' :
+                              incident.priority === 'P3' ? 'info.light' : // FIXED: Added space
                               'success.light',
                             color: 'white',
                             fontSize: '0.75rem',
                             fontWeight: 'bold'
                           }}
                         >
-                          {incident.priority || 'N/A'}
+                          {getDisplayValue(incident.priority)}
                         </Box>
                       </TableCell>
+                      {/* UPDATED: Team Fixed Issue - Fixed field name */}
                       <TableCell>
                         <Typography variant="body2">
-                          {incident.teamFixedIssue || 'N/A'}
+                          {getDisplayValue(incident.teamFixedIssue)}
                         </Typography>
                       </TableCell>
+                      {/* UPDATED: Team Included - Fixed field name */}
                       <TableCell>
                         <Typography variant="body2">
-                          {incident.teamIncludedInTicket || 'N/A'}
+                          {getDisplayValue(incident.teamIncludedInTicket)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -295,16 +292,13 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
                             maxWidth: '400px'
                           }}
                         >
-                          {incident.longDescription || 'N/A'}
+                          {getDisplayValue(incident.longDescription)}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Tooltip title="Delete incident">
                           <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent row click when deleting
-                              handleDelete(incident.id, incident.incidentNumber);
-                            }}
+                            onClick={() => handleDelete(incident.id, incident.incidentNumber)}
                             color="error"
                             size="small"
                           >
@@ -329,8 +323,7 @@ const IncidentQueryTable: React.FC<IncidentQueryTableProps> = ({ onIncidentSelec
 
           {searchResults.length > 0 && (
             <Alert severity="success" sx={{ mt: 2 }}>
-              Found {searchResults.length} incident(s) with number "{incidentNumber}". 
-              {onIncidentSelect && ' Click on any row to load the incident for editing.'}
+              Found {searchResults.length} incident(s) with number "{incidentNumber}".
             </Alert>
           )}
         </Box>

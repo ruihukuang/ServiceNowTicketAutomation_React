@@ -23,7 +23,7 @@ interface TableRowComponentProps {
   row: TicketRow;
   onEdit: (rowId: string, field: keyof TicketRow, value: string) => void;
   onDelete: (rowId: string) => void;
-  canDelete: boolean;
+  canDelete: boolean; // ADDED BACK: For consistency, though it will always be true now
 }
 
 const TableRowComponent: React.FC<TableRowComponentProps> = ({
@@ -42,7 +42,9 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
 
   // NEW: Handler for multi-select changes
   const handleMultiSelectChange = (field: keyof TicketRow, selectedValues: string[]) => {
-    // This is handled within the multi-select component itself
+    // Convert array back to string for storage
+    const value = selectedValues.join(', ');
+    onEdit(row.id, field, value);
   };
 
   // Check if this is a backend ID (not a temporary one)
@@ -73,17 +75,15 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
 
       {/* Actions Column */}
       <TableCell>
-        <Tooltip title={canDelete ? "Delete row" : "Cannot delete the only row"}>
-          <span>
-            <IconButton
-              onClick={() => onDelete(row.id)}
-              disabled={!canDelete}
-              color="error"
-              size="small"
-            >
-              <DeleteIcon />
-            </IconButton>
-          </span>
+        {/* UPDATED: Delete button is always enabled but keeps canDelete for consistency */}
+        <Tooltip title="Delete row">
+          <IconButton
+            onClick={() => onDelete(row.id)}
+            color="error"
+            size="small"
+          >
+            <DeleteIcon />
+          </IconButton>
         </Tooltip>
       </TableCell>
 
@@ -91,8 +91,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderTextField(
           row.id,
-          'IncidentNumber',
-          row.IncidentNumber || '',
+          'incidentNumber',
+          row.incidentNumber || '',
           handleFieldEdit,
           'Enter incident number'
         )}
@@ -102,8 +102,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderSelectWithCustomInput(
           row.id,
-          'AssignedGroup',
-          row.AssignedGroup || '',
+          'assignedGroup',
+          row.assignedGroup || '',
           handleFieldEdit,
           handleSelectChange,
           fieldOptions.assignedGroup,
@@ -115,8 +115,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderTextField(
           row.id,
-          'LongDescription',
-          row.LongDescription || '',
+          'longDescription',
+          row.longDescription|| '',
           handleFieldEdit,
           'Enter long description',
           { minWidth: 400 },
@@ -129,8 +129,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderMultiSelectField(
           row.id,
-          'Team_Fixed_Issue',
-          row.Team_Fixed_Issue || '',
+          'teamFixedIssue',
+          row.teamFixedIssue || '',
           handleFieldEdit,
           handleMultiSelectChange,
           fieldOptions.teamFixedIssue,
@@ -142,8 +142,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderMultiSelectField(
           row.id,
-          'Team_Included_in_Ticket',
-          row.Team_Included_in_Ticket || '',
+          'teamIncludedInTicket',
+          row.teamIncludedInTicket || '',
           handleFieldEdit,
           handleMultiSelectChange,
           fieldOptions.teamIncluded,
@@ -155,8 +155,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderSelectField(
           row.id,
-          'ServiceOwner',
-          row.ServiceOwner || '',
+          'serviceOwner',
+          row.serviceOwner || '',
           handleSelectChange,
           fieldOptions.serviceOwner,
           'Select service owner'
@@ -167,8 +167,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderSelectField(
           row.id,
-          'Priority',
-          row.Priority || '',
+          'priority',
+          row.priority || '',
           handleSelectChange,
           fieldOptions.priority,
           'Select priority'
@@ -179,8 +179,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderDateTimeField(
           row.id,
-          'OpenDate',
-          row.OpenDate || '',
+          'openDate',
+          row.openDate || '',
           handleFieldEdit,
           'Select open date and time',
           { width: 200 }
@@ -191,8 +191,8 @@ const TableRowComponent: React.FC<TableRowComponentProps> = ({
       <TableCell>
         {renderDateTimeField(
           row.id,
-          'UpdatedDate',
-          row.UpdatedDate || '',
+          'updatedDate',
+          row.updatedDate || '',
           handleFieldEdit,
           'Select updated date and time',
           { width: 200 }

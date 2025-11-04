@@ -27,15 +27,15 @@ import {
 // Default row template
 export const defaultRow: TicketRow = {
   id: 'temp-1',
-  IncidentNumber: '',
-  AssignedGroup: 'ML Operation',
-  LongDescription: '',
-  Team_Fixed_Issue: 'ML Operation',
-  Team_Included_in_Ticket: 'ML Operation',
-  ServiceOwner: '',
-  Priority: '',
-  OpenDate: '',
-  UpdatedDate: ''
+  incidentNumber: '',
+  assignedGroup: 'ML Operation',
+  longDescription: '',
+  teamFixedIssue: 'ML Operation',
+  teamIncludedInTicket: 'ML Operation',
+  serviceOwner: '',
+  priority: '',
+  openDate: '',
+  updatedDate: ''
 };
 
 // Field options - UPDATED: Added more team options

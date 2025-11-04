@@ -9,7 +9,8 @@ import {
   TableRow,
   TableCell,
   Alert,
-  Button
+  Button,
+  Typography
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import type { TicketRow } from '../../types';
@@ -37,11 +38,16 @@ const EditableTable: React.FC<EditableTableProps> = ({
   const [page, setPage] = useState(0);
   const rowsPerPage = 5;
 
-  // Ensure we always have valid data
+  // Ensure we handle empty data properly
   const rows = React.useMemo(() => {
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log('🔄 Using default row data');
-      return [defaultRow];
+    if (!data || !Array.isArray(data)) {
+      console.log('🔄 Using empty data');
+      return [];
+    }
+    
+    if (data.length === 0) {
+      console.log('📭 Table is empty');
+      return [];
     }
     
     // Validate each row has required fields
@@ -71,8 +77,8 @@ const EditableTable: React.FC<EditableTableProps> = ({
     const newRow: TicketRow = {
       ...defaultRow,
       id: `temp-${Date.now()}`,
-      OpenDate: currentDateTime,
-      UpdatedDate: currentDateTime
+      openDate: currentDateTime,
+      updatedDate: currentDateTime
     };
     const newRows = [...rows, newRow];
     console.log('➕ Added new row. Total rows:', newRows.length);
@@ -114,6 +120,13 @@ const EditableTable: React.FC<EditableTableProps> = ({
               Showing {paginatedRows.length} of {rows.length} rows
             </Alert>
           )}
+          
+          {/* Show empty table message */}
+          {rows.length === 0 && (
+            <Alert severity="info" sx={{ py: 0.5, fontSize: '0.875rem' }}>
+              Table is empty - add rows below or proceed without data
+            </Alert>
+          )}
         </Box>
         
         <Button
@@ -125,55 +138,75 @@ const EditableTable: React.FC<EditableTableProps> = ({
         </Button>
       </Box>
 
-      <TableContainer 
-        component={Paper}
-        sx={{ 
-          maxHeight: needsPagination ? 'calc(100vh - 300px)' : 'none',
-          overflow: 'auto'
-        }}
-      >
-        <Table 
-          sx={{ minWidth: 650 }} 
-          aria-label="ticket data table"
-          stickyHeader={needsPagination}
+      {/* Show empty state message when no rows */}
+      {rows.length === 0 ? (
+        <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#fafafa' }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No Data Available
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The table is currently empty. You can add rows using the "Add Row" button above, 
+            or proceed to the next page without entering any data.
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddRow}
+          >
+            Add First Row
+          </Button>
+        </Paper>
+      ) : (
+        <TableContainer 
+          component={Paper}
+          sx={{ 
+            maxHeight: needsPagination ? 'calc(100vh - 300px)' : 'none',
+            overflow: 'auto'
+          }}
         >
-          <TableHead>
-            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-              <TableCell sx={{ fontWeight: 'bold', width: 200, minWidth: 180 }}>ID</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', width: 50 }}>Actions</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>Incident Number</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Assigned Group</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', minWidth: 400 }}>Long Description</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Team Fixed Issue</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Team Included in Ticket</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Service Owner</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Priority</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Open Date</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Updated Date</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginatedRows.map((row) => (
-              <TableRowComponent
-                key={row.id}
-                row={row}
-                onEdit={handleEdit}
-                onDelete={handleDeleteRow}
-                canDelete={rows.length > 1}
-              />
-            ))}
-            
-            {/* Show empty rows for consistent table height only when pagination is needed */}
-            {needsPagination && paginatedRows.length < rowsPerPage && (
-              Array.from({ length: rowsPerPage - paginatedRows.length }).map((_, index) => (
-                <TableRow key={`empty-${index}`} style={{ height: 53 * 3 }}>
-                  <TableCell colSpan={11} />
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          <Table 
+            sx={{ minWidth: 650 }} 
+            aria-label="ticket data table"
+            stickyHeader={needsPagination}
+          >
+            <TableHead>
+              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                <TableCell sx={{ fontWeight: 'bold', width: 200, minWidth: 180 }}>ID</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 50 }}>Actions</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>Incident Number</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Assigned Group</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', minWidth: 400 }}>Long Description</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Team Fixed Issue</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Team Included in Ticket</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Service Owner</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Priority</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Open Date</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Updated Date</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedRows.map((row) => (
+                <TableRowComponent
+                  key={row.id}
+                  row={row}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteRow}
+                  canDelete={true} // UPDATED: Added back for consistency with the interface
+                />
+              ))}
+              
+              {/* Show empty rows for consistent table height only when pagination is needed */}
+              {needsPagination && paginatedRows.length < rowsPerPage && (
+                Array.from({ length: rowsPerPage - paginatedRows.length }).map((_, index) => (
+                  <TableRow key={`empty-${index}`} style={{ height: 53 * 3 }}>
+                    <TableCell colSpan={11} />
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
       
       {/* Pagination controls - only show when needed */}
       {needsPagination && (
@@ -185,11 +218,12 @@ const EditableTable: React.FC<EditableTableProps> = ({
         />
       )}
       
+      {/* Debug info - handle empty table */}
       <Alert severity="info" sx={{ mt: 2 }}>
-        <strong>Debug Info:</strong> Showing {paginatedRows.length} of {rows.length} row(s) | 
+        <strong>Debug Info:</strong> {rows.length === 0 ? 'Table is empty' : `Showing ${paginatedRows.length} of ${rows.length} row(s)`} | 
         {needsPagination ? ` Page ${page + 1} of ${Math.ceil(rows.length / rowsPerPage)} | ` : ' '}
-        Backend IDs: {rows.filter(row => !row.id.startsWith('temp-')).length} | 
-        Temporary IDs: {rows.filter(row => row.id.startsWith('temp-')).length}
+        {rows.length > 0 && `Backend IDs: ${rows.filter(row => !row.id.startsWith('temp-')).length} | 
+        Temporary IDs: ${rows.filter(row => row.id.startsWith('temp-')).length}`}
       </Alert>
     </Box>
   );

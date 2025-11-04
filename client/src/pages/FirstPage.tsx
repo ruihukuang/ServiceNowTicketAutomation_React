@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Typography, Paper, Button, Box, Alert } from '@mui/material'
 import EditableTable from '../components/Page1/EditableTable'
 import IncidentQueryTable from '../components/Page1/IncidentQueryTable'
 import { Page1DataManager } from '../components/Page1/Page1DataManager'
 import type { TicketRow } from '../types'
 import { CustomSnackbar, useSnackbar } from '../components/Page1/snackbar'
-import type { IncidentDetails } from '../services/dataService'
 
-// Default data
-const defaultTableData: TicketRow[] = [
-  {
-    id: 'temp-1',
-    IncidentNumber: '',
-    AssignedGroup: 'ML Operation',
-    LongDescription: '',
-    Team_Fixed_Issue: 'ML Operation',
-    Team_Included_in_Ticket: 'ML Operation',
-    ServiceOwner: '',
-    Priority: '',
-    OpenDate: '',
-    UpdatedDate: ''
-  }
-];
+// Default data - Start with empty array
+const defaultTableData: TicketRow[] = [];
 
 // localStorage key
 const STORAGE_KEY = 'ticketData';
@@ -33,6 +20,9 @@ const FirstPage: React.FC = () => {
   
   // Use the snackbar hook
   const { snackbar, showSnackbar, hideSnackbar } = useSnackbar();
+
+  // Initialize navigation hook
+  const navigate = useNavigate();
 
   // Initialize data manager
   const dataManager = new Page1DataManager(defaultTableData, STORAGE_KEY);
@@ -49,7 +39,7 @@ const FirstPage: React.FC = () => {
       } catch (error) {
         console.error('❌ Error loading data:', error);
         setTableData(defaultTableData);
-        showSnackbar('Error loading saved data. Using default template.', 'warning', 6000);
+        showSnackbar('Error loading saved data. Using empty template.', 'warning', 6000);
       } finally {
         setIsInitialized(true);
       }
@@ -60,7 +50,7 @@ const FirstPage: React.FC = () => {
 
   // Save data to localStorage whenever tableData changes
   useEffect(() => {
-    if (isInitialized && tableData.length > 0) {
+    if (isInitialized) {
       console.log('💾 Auto-saving data to localStorage:', tableData);
       try {
         dataManager.saveData(tableData);
@@ -70,29 +60,6 @@ const FirstPage: React.FC = () => {
       }
     }
   }, [tableData, isInitialized]);
-
-  // Handle incident selection from query table
-  const handleIncidentSelect = (incident: IncidentDetails) => {
-    console.log('🔄 Loading incident for editing:', incident);
-    
-    // Convert IncidentDetails to TicketRow format
-    const ticketRow: TicketRow = {
-      id: incident.id,
-      IncidentNumber: incident.incidentNumber,
-      AssignedGroup: incident.assignedGroup,
-      LongDescription: incident.longDescription,
-      Team_Fixed_Issue: incident.teamFixedIssue,
-      Team_Included_in_Ticket: incident.teamIncludedInTicket,
-      ServiceOwner: incident.serviceOwner,
-      Priority: incident.priority,
-      OpenDate: incident.openDate,
-      UpdatedDate: incident.updatedDate
-    };
-
-    // Replace the current table data with the selected incident
-    setTableData([ticketRow]);
-    showSnackbar(`Incident ${incident.incidentNumber} loaded for editing!`, 'success', 5000);
-  };
 
   // Handle data changes
   const handleDataChange = (newData: TicketRow[]) => {
@@ -112,11 +79,11 @@ const FirstPage: React.FC = () => {
     setTableData(updatedData);
   };
 
-  // Clear All Data - COMPLETELY RESET TO DEFAULT
+  // Clear All Data - COMPLETELY RESET TO EMPTY
   const handleClearData = () => {
     console.log('🗑️ Clearing all data...');
     
-    // Use the data manager to clear data and get the default template
+    // Use the data manager to clear data and get the empty template
     const clearedData = dataManager.clearData();
     
     // Force update the state with the cleared data
@@ -125,21 +92,15 @@ const FirstPage: React.FC = () => {
     // Force localStorage update
     dataManager.saveData(clearedData);
     
-    showSnackbar('All data cleared! Reset to default template.', 'info', 6000);
-    console.log('✅ Data cleared and reset to defaults:', clearedData);
+    showSnackbar('All data cleared! Reset to empty template.', 'info', 6000);
+    console.log('✅ Data cleared and reset to empty:', clearedData);
   };
 
-  // Handle row deletion from table
+  // UPDATED: Handle row deletion from table - ALLOWS DELETING LAST ROW
   const handleDeleteRow = (rowId: string) => {
     console.log(`🗑️ Deleting row: ${rowId}`);
     
-    // Prevent deleting the last row
-    if (tableData.length <= 1) {
-      showSnackbar('You must have at least one row', 'warning', 3000);
-      return;
-    }
-    
-    // Filter out the row to delete
+    // CHANGED: Removed restriction - now allows deleting the last row
     const newData = tableData.filter(row => row.id !== rowId);
     
     // Update state
@@ -149,11 +110,23 @@ const FirstPage: React.FC = () => {
     console.log('✅ Row deleted, new data:', newData);
   };
 
-  // Save and Next with validation
+  // Save and Next with validation AND navigation - ALLOWS EMPTY TABLE
   const handleSaveAndNext = async () => {
     setLoading(true);
     try {
-      // Check for duplicate incident numbers before any other validation
+      // Check if table is empty - allow navigation for empty table
+      if (tableData.length === 0) {
+        console.log('📭 Table is empty - allowing navigation to Page 2');
+        showSnackbar('Navigating to Page 2 with empty data...', 'info', 2000);
+        
+        // Navigate to Page 2 after a short delay
+        setTimeout(() => {
+          navigate('/page2');
+        }, 2000);
+        return;
+      }
+
+      // Only validate duplicate incident numbers if table has data
       const duplicateResult = dataManager.hasDuplicateIncidentNumbers(tableData);
       if (duplicateResult.hasDuplicates) {
         const duplicateDetails = Array.from(duplicateResult.duplicates.entries())
@@ -171,7 +144,7 @@ const FirstPage: React.FC = () => {
         return;
       }
 
-      // Check for incomplete rows before attempting save
+      // Only validate incomplete rows if table has data
       const incompleteRows = dataManager.getIncompleteRows(tableData);
       if (incompleteRows.length > 0) {
         const incompleteDetails = incompleteRows.map(row => 
@@ -187,18 +160,34 @@ const FirstPage: React.FC = () => {
         return;
       }
 
+      // Only save to backend if table has data
       const result = await dataManager.saveToBackend(tableData, showSnackbar);
       
-      // Update table data with backend IDs if save was successful
-      if (result.success && result.updatedData) {
-        setTableData(result.updatedData);
-        
-        // Also update localStorage with the new data containing backend IDs
-        try {
-          dataManager.saveData(result.updatedData);
-        } catch (saveError) {
-          console.error('❌ Error updating localStorage after backend save:', saveError);
+      // Added navigation logic after successful save
+      if (result.success) {
+        // Update table data with backend IDs if save was successful
+        if (result.updatedData) {
+          setTableData(result.updatedData);
+          
+          // Also update localStorage with the new data containing backend IDs
+          try {
+            dataManager.saveData(result.updatedData);
+          } catch (saveError) {
+            console.error('❌ Error updating localStorage after backend save:', saveError);
+          }
         }
+        
+        // Show success message and navigate to Page 2
+        showSnackbar('Data saved successfully! Navigating to Page 2...', 'success', 2000);
+        
+        // Navigate to Page 2 after a short delay to show the success message
+        setTimeout(() => {
+          navigate('/page2');
+        }, 2000);
+        
+      } else {
+        // Handle save failure
+        showSnackbar('Failed to save data to backend', 'error', null);
       }
     } catch (error) {
       console.error('❌ Save error:', error);
@@ -208,11 +197,13 @@ const FirstPage: React.FC = () => {
     }
   };
 
-  // Check for duplicate incident numbers
-  const hasDuplicateIncidentNumbers = dataManager.hasDuplicateIncidentNumbers(tableData).hasDuplicates;
+  // Check for duplicate incident numbers (only if table has data)
+  const hasDuplicateIncidentNumbers = tableData.length > 0 
+    ? dataManager.hasDuplicateIncidentNumbers(tableData).hasDuplicates
+    : false;
 
-  // Check if all rows are complete
-  const allRowsComplete = tableData.length > 0 && tableData.every(row => 
+  // Check if all rows are complete (empty table is considered "complete" for navigation)
+  const allRowsComplete = tableData.length === 0 || tableData.every(row => 
     dataManager.isRowComplete(row)
   );
 
@@ -230,8 +221,8 @@ const FirstPage: React.FC = () => {
     row && row.id && typeof row.id === 'string' && row.id.startsWith('temp-')
   ).length;
 
-  // Determine if save button should be enabled
-  const canSave = allRowsComplete && !hasDuplicateIncidentNumbers;
+  // Determine if save button should be enabled - ALLOWS EMPTY TABLE
+  const canSave = (tableData.length === 0) || (allRowsComplete && !hasDuplicateIncidentNumbers);
 
   // Show loading while initializing
   if (!isInitialized) {
@@ -272,7 +263,7 @@ const FirstPage: React.FC = () => {
           Data Entry & Management
         </Typography>
         <Typography variant="h6" component="p" gutterBottom align="center" sx={{ mb: 3 }}>
-          Edit the table below to enter ticket information
+          Edit the table below to enter ticket information (or leave empty to proceed)
         </Typography>
         
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -286,10 +277,10 @@ const FirstPage: React.FC = () => {
           </Button>
           <Alert severity="info" sx={{ flex: 1 }}>
             Data is automatically saved in the browser. Your changes will persist even if you refresh the page or close and reopen it using the same browser.
+            {tableData.length === 0 && ' The table is currently empty - you can proceed to Page 2 without entering any data.'}
           </Alert>
         </Box>
         
-        {/* UPDATED: Remove ID sync props */}
         <EditableTable 
           data={tableData} 
           onDataChange={handleDataChange}
@@ -297,14 +288,15 @@ const FirstPage: React.FC = () => {
           onDeleteRow={handleDeleteRow}
         />
         
-        {/* Incident Query Table */}
-        <IncidentQueryTable onIncidentSelect={handleIncidentSelect} />
+        {/* Incident Query Table - No onIncidentSelect prop */}
+        <IncidentQueryTable />
         
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
           <Typography variant="body2" color="text.secondary">
-            {tableData[0]?.IncidentNumber ? `Editing: ${tableData[0].IncidentNumber}` : 'New ticket'}
+            {tableData.length === 0 ? 'Empty table - ready to proceed' : 
+             tableData[0]?.incidentNumber ? `Editing: ${tableData[0].incidentNumber}` : 'New ticket'}
             {hasBackendIds && ` | Backend IDs: ${backendIdCount}, Temporary IDs: ${tempIdCount}`}
-            {!allRowsComplete && ' | ⚠️ Incomplete rows'}
+            {tableData.length > 0 && !allRowsComplete && ' | ⚠️ Incomplete rows'}
             {hasDuplicateIncidentNumbers && ' | ❌ Duplicate Incident Numbers'}
           </Typography>
           <Button 
@@ -314,7 +306,7 @@ const FirstPage: React.FC = () => {
             disabled={loading || !canSave}
             color={canSave ? 'primary' : 'warning'}
           >
-            {loading ? 'Saving...' : 'Save & Next'}
+            {loading ? 'Processing...' : 'Save & Next'}
           </Button>
         </Box>
 
@@ -326,11 +318,19 @@ const FirstPage: React.FC = () => {
           </Alert>
         )}
 
-        {/* Warning for incomplete data */}
-        {!allRowsComplete && !hasDuplicateIncidentNumbers && (
+        {/* Warning for incomplete data - only show when table has data */}
+        {tableData.length > 0 && !allRowsComplete && !hasDuplicateIncidentNumbers && (
           <Alert severity="warning" sx={{ mt: 2 }}>
             <strong>Incomplete Data:</strong> Please fill in all required fields in all rows before saving.
             The Save & Next button will be enabled when all fields are populated.
+          </Alert>
+        )}
+
+        {/* Info message for empty table */}
+        {tableData.length === 0 && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <strong>Empty Table:</strong> You can proceed to Page 2 without entering any data. 
+            Click "Save & Next" to continue with an empty dataset.
           </Alert>
         )}
       </Paper>
