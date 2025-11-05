@@ -277,7 +277,6 @@ const FirstPage: React.FC = () => {
           </Button>
           <Alert severity="info" sx={{ flex: 1 }}>
             Data is automatically saved in the browser. Your changes will persist even if you refresh the page or close and reopen it using the same browser.
-            {tableData.length === 0 && ' The table is currently empty - you can proceed to Page 2 without entering any data.'}
           </Alert>
         </Box>
         

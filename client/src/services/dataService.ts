@@ -4,6 +4,7 @@ import type { TicketRow } from '../types';
 import type { IncidentDetails } from '../types';
 import type { ActivityResponse } from '../types';
 import { aiProcessingService } from './aiProcessingService';
+import { aiProcessingExistingService } from './aiProcessingExistingService';
 
 const API_BASE_URL = 'http://localhost:5226/api';
 
@@ -15,6 +16,44 @@ const apiClient = axios.create({
 });
 
 export const dataService = {
+  // NEW: Get review data by date
+  async getReviewDataByDate(year: string, month?: string): Promise<ActivityResponse[]> {
+    try {
+      const params = new URLSearchParams();
+      params.append('year', year);
+      if (month) {
+        params.append('month', month);
+      }
+      
+      console.log(`🔍 Fetching review data by date: ${year}${month ? '-' + month : ''}`);
+      const response = await apiClient.get<ActivityResponse[]>(`/FrontEnd/byDate?${params}`);
+      
+      console.log(`✅ Review data by date loaded: ${response.data.length} records`);
+      if (response.data && response.data.length > 0) {
+        console.log('🔍 First review item fields:', Object.keys(response.data[0]));
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching review data by date:', error);
+      
+      if (axios.isAxiosError(error)) {
+        console.error('❌ API Error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+        
+        if (error.response?.status === 404) {
+          throw new Error(`No review data found for ${year}${month ? '-' + month : ''}`);
+        } else if (error.response?.status === 500) {
+          throw new Error('Server error while fetching review data by date');
+        }
+      }
+      throw new Error('Failed to fetch review data by date');
+    }
+  },
+
   // FIXED: Updated saveReviewedData method to send individual activities
   async saveReviewedData(activities: ActivityResponse[]): Promise<any> {
     console.log('💾 Saving reviewed data to backend...');
@@ -217,6 +256,20 @@ export const dataService = {
       return results;
     } catch (error) {
       console.error('❌ AI processing failed in dataService:', error);
+      throw error;
+    }
+  },
+
+  // UPDATED: AI Processing method for existing data with date parameters
+  async processWithAIExisting(year?: string, month?: string): Promise<any> {
+    console.log('🚀 Starting AI existing data processing through dataService...');
+    console.log(`📅 Processing with date filters - Year: ${year || 'Not specified'}, Month: ${month || 'Not specified'}`);
+    
+    try {
+      const results = await aiProcessingExistingService.processExistingActivitiesWithAI(year, month);
+      return results;
+    } catch (error) {
+      console.error('❌ AI existing data processing failed in dataService:', error);
       throw error;
     }
   },

@@ -412,7 +412,7 @@ const SecondPage: React.FC = () => {
               size="large"
               sx={{ minWidth: 200 }}
             >
-              Go to Data Analysis
+              Review processed records
             </Button>
           </Stack>
         </Box>

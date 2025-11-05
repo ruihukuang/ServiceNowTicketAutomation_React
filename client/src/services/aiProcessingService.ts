@@ -9,22 +9,34 @@ const apiClient = axios.create({
   },
 });
 
+// Define a proper type for the results
+interface AIProcessingResults {
+  AutomationDataProcess: any;
+  AiSummary: any;
+  AiSystem: any;
+  AiIssue: any;
+  AiRootCause: any;
+  AiDuplicate: any;
+  AutomationDataProcessFurther: any;
+}
+
 export const aiProcessingService = {
   // Process activities through AI pipeline
-  async processActivitiesWithAI(): Promise<any> {
+  async processActivitiesWithAI(): Promise<AIProcessingResults> {
     console.log('🚀 Starting AI and Automation data processing...');
     
-    try {
-      const results = {
-        AutomationDataProcess: null,
-        AiSummary: null,
-        AiSystem: null,
-        AiIssue: null,
-        AiRootCause: null,
-        AiDuplicate: null,
-        AutomationDataProcessFurther: null
-      };
+    // Initialize with proper structure
+    const results: AIProcessingResults = {
+      AutomationDataProcess: null,
+      AiSummary: null,
+      AiSystem: null,
+      AiIssue: null,
+      AiRootCause: null,
+      AiDuplicate: null,
+      AutomationDataProcessFurther: null
+    };
 
+    try {
       // 1. Process activities
       console.log('📊 Processing activities...');
       try {

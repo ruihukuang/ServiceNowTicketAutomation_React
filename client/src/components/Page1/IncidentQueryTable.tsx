@@ -329,11 +329,6 @@ const IncidentQueryTable: React.FC = () => {
         </Box>
       )}
 
-      {!searchPerformed && (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          Enter an incident number above to search for ALL matching incidents.
-        </Alert>
-      )}
     </Box>
   );
 };

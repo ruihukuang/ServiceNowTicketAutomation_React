@@ -121,12 +121,6 @@ const EditableTable: React.FC<EditableTableProps> = ({
             </Alert>
           )}
           
-          {/* Show empty table message */}
-          {rows.length === 0 && (
-            <Alert severity="info" sx={{ py: 0.5, fontSize: '0.875rem' }}>
-              Table is empty - add rows below or proceed without data
-            </Alert>
-          )}
         </Box>
         
         <Button
@@ -218,13 +212,7 @@ const EditableTable: React.FC<EditableTableProps> = ({
         />
       )}
       
-      {/* Debug info - handle empty table */}
-      <Alert severity="info" sx={{ mt: 2 }}>
-        <strong>Debug Info:</strong> {rows.length === 0 ? 'Table is empty' : `Showing ${paginatedRows.length} of ${rows.length} row(s)`} | 
-        {needsPagination ? ` Page ${page + 1} of ${Math.ceil(rows.length / rowsPerPage)} | ` : ' '}
-        {rows.length > 0 && `Backend IDs: ${rows.filter(row => !row.id.startsWith('temp-')).length} | 
-        Temporary IDs: ${rows.filter(row => row.id.startsWith('temp-')).length}`}
-      </Alert>
+
     </Box>
   );
 };
