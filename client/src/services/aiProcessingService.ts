@@ -95,7 +95,7 @@ export const aiProcessingService = {
       // 6. AI Duplicate
       console.log('🔄 Checking duplicates with AI...');
       try {
-        const aiDuplicateResponse = await apiClient.post('/Duplicate/AI_Duplicate');
+        const aiDuplicateResponse = await apiClient.post('/DuplicateUpdate/AI_Duplicate_update');
         results.AiDuplicate = aiDuplicateResponse.data;
         console.log('✅ AI duplicate check completed:', aiDuplicateResponse.data);
       } catch (error) {

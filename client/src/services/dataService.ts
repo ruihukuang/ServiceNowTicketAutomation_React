@@ -16,6 +16,39 @@ const apiClient = axios.create({
 });
 
 export const dataService = {
+  // NEW: Get duplicate records from backend
+  async getDuplicateRecords(): Promise<ActivityResponse[]> {
+    console.log('🔍 Fetching duplicate records from backend...');
+    
+    try {
+      const response = await apiClient.get<ActivityResponse[]>('/FrontEnd/duplicatelistAI');
+      console.log('✅ Duplicate records response:', response.data);
+      
+      if (response.data && response.data.length > 0) {
+        console.log('🔍 First duplicate item fields:', Object.keys(response.data[0]));
+        console.log(`📊 Found ${response.data.length} duplicate records`);
+      }
+      
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('❌ Error fetching duplicate records:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
+        
+        if (error.response?.status === 404) {
+          throw new Error('DuplicateListAI endpoint not found');
+        } else if (error.response?.status === 500) {
+          throw new Error('Server error while fetching duplicate records');
+        }
+      }
+      console.error('❌ API Error fetching duplicate records:', error);
+      throw new Error(`Failed to fetch duplicate records: ${error}`);
+    }
+  },
+
   // NEW: Get review data by date
   async getReviewDataByDate(year: string, month?: string): Promise<ActivityResponse[]> {
     try {
@@ -213,6 +246,154 @@ export const dataService = {
       }
       console.error('❌ API Error saving reviewed data:', error);
       throw new Error(`Failed to save reviewed data: ${error}`);
+    }
+  },
+
+  // NEW: Save duplicate records method
+  async saveDuplicateRecords(activities: ActivityResponse[]): Promise<any> {
+    console.log('💾 Saving duplicate records to backend...');
+    console.log(`📤 Sending ${activities.length} duplicate activities to backend`);
+    
+    // Validate data before sending
+    if (!activities || activities.length === 0) {
+      throw new Error('No duplicate activities provided for saving');
+    }
+
+    try {
+      const savedResults: any[] = [];
+      
+      // Send each duplicate activity individually
+      for (const activity of activities) {
+        console.log(`🔄 Processing duplicate activity ${activity.id} with incident ${activity.incidentNumber}`);
+        
+        // Create the backend activity structure
+        const backendActivity = {
+          id: activity.id,
+          incidentNumber: activity.incidentNumber,
+          assignedGroup: activity.assignedGroup,
+          longDescription: activity.longDescription,
+          team_Fixed_Issue: activity.team_Fixed_Issue,
+          team_Included_in_Ticket: activity.team_Included_in_Ticket,
+          serviceOwner: activity.serviceOwner,
+          priority: activity.priority,
+          guided_SLAdays: activity.guided_SLAdays,
+          met_SLA: activity.met_SLA,
+          extraDays_AfterSLAdays: activity.extraDays_AfterSLAdays,
+          numberTeam_Included_in_Ticket: activity.numberTeam_Included_in_Ticket,
+          numberTeam_Fixed_Issue: activity.numberTeam_Fixed_Issue,
+          is_AissignedGroup_ResponsibleTeam: activity.is_AissignedGroup_ResponsibleTeam,
+          did_AssignedGroup_Fix_Issue: activity.did_AssignedGroup_Fix_Issue,
+          summary_Issue: activity.summary_Issue,
+          summary_Issue_AI: activity.summary_Issue_AI,
+          system: activity.system,
+          system_AI: activity.system_AI,
+          issue: activity.issue,
+          issue_AI: activity.issue_AI,
+          root_Cause: activity.root_Cause,
+          root_Cause_AI: activity.root_Cause_AI,
+          duplicate: activity.duplicate, // This is the key field for duplicates
+          duplicate_AI: activity.duplicate_AI,
+          openDate: activity.openDate,
+          updatedDate: activity.updatedDate,
+          openDate_Year: activity.openDate_Year,
+          openDate_Month: activity.openDate_Month,
+          openDate_Day: activity.openDate_Day,
+          updatedDate_Year: activity.updatedDate_Year,
+          updatedDate_Month: activity.updatedDate_Month,
+          updatedDate_Day: activity.updatedDate_Day
+        };
+
+        // Remove undefined or null values
+        Object.keys(backendActivity).forEach(key => {
+          if (backendActivity[key as keyof typeof backendActivity] === undefined || 
+              backendActivity[key as keyof typeof backendActivity] === null) {
+            delete backendActivity[key as keyof typeof backendActivity];
+          }
+        });
+
+        console.log('🔍 Duplicate activity data being sent:', {
+          id: backendActivity.id,
+          incidentNumber: backendActivity.incidentNumber,
+          duplicate: backendActivity.duplicate,
+          duplicate_AI: backendActivity.duplicate_AI
+        });
+
+        let response;
+        
+        // Try sending as direct activity object
+        try {
+          response = await apiClient.put('/FrontEnd', backendActivity, {
+            timeout: 30000,
+            validateStatus: function (status) {
+              return status < 500;
+            }
+          });
+        } catch (error: any) {
+          // If direct object fails, try wrapping in activity property
+          if (error.response?.status === 400) {
+            console.log('🔄 Direct object failed, trying with activity wrapper...');
+            const wrappedData = {
+              activity: backendActivity
+            };
+            
+            response = await apiClient.put('/FrontEnd', wrappedData, {
+              timeout: 30000,
+              validateStatus: function (status) {
+                return status < 500;
+              }
+            });
+          } else {
+            throw error;
+          }
+        }
+
+        console.log(`✅ Duplicate activity ${activity.incidentNumber} saved successfully:`, response.data);
+        
+        if (response.status === 400) {
+          console.error('❌ Backend validation failed for duplicate activity:', backendActivity);
+          throw new Error(`Backend validation error for duplicate activity ${activity.incidentNumber}: ${JSON.stringify(response.data)}`);
+        }
+        
+        savedResults.push({
+          id: activity.id,
+          incidentNumber: activity.incidentNumber,
+          status: response.status,
+          data: response.data
+        });
+      }
+      
+      return {
+        success: true,
+        message: `Successfully saved ${activities.length} duplicate records`,
+        data: savedResults,
+        status: 200
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('❌ Error saving duplicate records:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            data: error.config?.data ? JSON.parse(error.config.data) : 'No data'
+          }
+        });
+        
+        if (error.response?.status === 400) {
+          const errorData = error.response.data;
+          throw new Error(`Backend validation error: ${errorData.title}. Check console for details.`);
+        } else if (error.response?.status === 404) {
+          throw new Error('FrontEnd endpoint not found');
+        } else if (error.response?.status === 500) {
+          throw new Error('Server error while saving duplicate records');
+        } else if (error.code === 'ECONNABORTED') {
+          throw new Error('Request timeout - server took too long to respond');
+        }
+      }
+      console.error('❌ API Error saving duplicate records:', error);
+      throw new Error(`Failed to save duplicate records: ${error}`);
     }
   },
 

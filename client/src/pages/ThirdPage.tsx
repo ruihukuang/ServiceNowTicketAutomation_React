@@ -22,6 +22,7 @@ import { dataService } from '../services/dataService';
 import type { ActivityResponse } from '../types';
 import { ActivityTable, ActivitySummary } from '../components/Page3/TableComponents';
 import { SequentialButtons } from '../components/Page3/SequentialButtons';
+import { DuplicateManagement } from '../components/Page3/DuplicateManagement'; // NEW: Import DuplicateManagement
 
 // Local storage keys for Page 3
 const STORAGE_KEYS = {
@@ -29,7 +30,8 @@ const STORAGE_KEYS = {
   CURRENT_STEP: 'thirdPage_currentStep',
   AI_RESULTS: 'thirdPage_aiResults',
   SELECTED_YEAR: 'thirdPage_selectedYear',
-  SELECTED_MONTH: 'thirdPage_selectedMonth'
+  SELECTED_MONTH: 'thirdPage_selectedMonth',
+  DUPLICATE_ACTIVITIES: 'thirdPage_duplicateActivities' // NEW: Storage for duplicate records
 };
 
 const ThirdPage: React.FC = () => {
@@ -70,6 +72,15 @@ const ThirdPage: React.FC = () => {
     return saved || '';
   });
 
+  // NEW STATES FOR DUPLICATE MANAGEMENT
+  const [showDuplicateManagement, setShowDuplicateManagement] = useState(false);
+  const [duplicateStep, setDuplicateStep] = useState(0); // 0: not started, 1: check/edit, 2: copy AI, 3: save
+  const [duplicateSaving, setDuplicateSaving] = useState(false);
+  const [duplicateActivities, setDuplicateActivities] = useState<ActivityResponse[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.DUPLICATE_ACTIVITIES);
+    return saved ? JSON.parse(saved) : [];
+  }); // NEW: Separate state for duplicate records
+
   // Save to localStorage whenever state changes
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(activities));
@@ -95,6 +106,11 @@ const ThirdPage: React.FC = () => {
     localStorage.setItem(STORAGE_KEYS.SELECTED_MONTH, selectedMonth);
   }, [selectedMonth]);
 
+  // NEW: Save duplicate activities to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DUPLICATE_ACTIVITIES, JSON.stringify(duplicateActivities));
+  }, [duplicateActivities]);
+
   const handleRowClick = (activity: ActivityResponse) => {
     console.log('Activity clicked:', activity);
   };
@@ -111,6 +127,72 @@ const ThirdPage: React.FC = () => {
     
     setActivities(updatedActivities);
     console.log('✅ Activity updated in state and localStorage');
+  };
+
+  // NEW: Handle updates for duplicate activities
+  const handleUpdateDuplicateRow = (activityId: string, field: keyof ActivityResponse, value: string) => {
+    console.log(`🔄 Updating duplicate activity ${activityId}, field ${field} to:`, value);
+    
+    const updatedDuplicateActivities = duplicateActivities.map(activity => 
+      activity.id === activityId 
+        ? { ...activity, [field]: value }
+        : activity
+    );
+    
+    setDuplicateActivities(updatedDuplicateActivities);
+    console.log('✅ Duplicate activity updated in state and localStorage');
+  };
+
+  // NEW: UPDATED HANDLER FOR DUPLICATE MANAGEMENT
+  const handleCheckEditDuplicates = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔍 Fetching duplicate records from backend...');
+      const duplicateData = await dataService.getDuplicateRecords();
+      setDuplicateActivities(duplicateData);
+      setShowDuplicateManagement(true);
+      setDuplicateStep(1);
+      setSnackbar({ 
+        open: true, 
+        message: `Loaded ${duplicateData.length} duplicate records for management`, 
+        severity: 'success' 
+      });
+      console.log('✅ Duplicate records loaded:', duplicateData);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to fetch duplicate records';
+      setError(errorMessage);
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      console.error('❌ Error fetching duplicate records:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // NEW: Handle save duplicate records
+  const handleSaveDuplicateRecords = async (activitiesToSave: ActivityResponse[]) => {
+    try {
+      setDuplicateSaving(true);
+      // Use the same save method as complete review
+      const result = await dataService.saveReviewedData(activitiesToSave);
+      setDuplicateStep(3);
+      setSnackbar({ 
+        open: true, 
+        message: `Successfully saved ${activitiesToSave.length} duplicate records`, 
+        severity: 'success' 
+      });
+      return result;
+    } catch (error: any) {
+      setSnackbar({ 
+        open: true, 
+        message: `Failed to save duplicate records: ${error.message}`, 
+        severity: 'error' 
+      });
+      throw error;
+    } finally {
+      setDuplicateSaving(false);
+    }
   };
 
   // Handle Review data fetching by date - STEP 1
@@ -224,7 +306,7 @@ const ThirdPage: React.FC = () => {
     }
   };
 
-  // Handle Step 4 - Complete Review and Save Data
+  // UPDATED: Handle Step 4 - Complete Review and Save Data
   const handleCompleteReview = async () => {
     if (activities.length === 0) {
       setSnackbar({ open: true, message: 'No activities available to save', severity: 'error' });
@@ -262,19 +344,7 @@ const ThirdPage: React.FC = () => {
       // Save all reviewed data using the dataService (which handles transformation)
       const saveResult = await dataService.saveReviewedData(activitiesToSave);
       
-      setCurrentStep(0); // Reset to initial step
-      
-      // Clear localStorage after successful save
-      localStorage.removeItem(STORAGE_KEYS.ACTIVITIES);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_STEP);
-      localStorage.removeItem(STORAGE_KEYS.AI_RESULTS);
-      localStorage.removeItem(STORAGE_KEYS.SELECTED_YEAR);
-      localStorage.removeItem(STORAGE_KEYS.SELECTED_MONTH);
-      
-      setActivities([]);
-      setAiResults(null);
-      setSelectedYear('');
-      setSelectedMonth('');
+      setCurrentStep(4); // UPDATED: Move to step 5 (duplicate management) instead of resetting to 0
       
       setSnackbar({ 
         open: true, 
@@ -302,7 +372,7 @@ const ThirdPage: React.FC = () => {
     }
   };
 
-  // Clear all data and reset state
+  // UPDATED: Clear all data and reset state including duplicates
   const handleClearData = () => {
     setActivities([]);
     setCurrentStep(0);
@@ -310,6 +380,9 @@ const ThirdPage: React.FC = () => {
     setError(null);
     setSelectedYear('');
     setSelectedMonth('');
+    setShowDuplicateManagement(false); // NEW: Clear duplicate management
+    setDuplicateStep(0); // NEW: Clear duplicate step
+    setDuplicateActivities([]); // NEW: Clear duplicate activities
     
     // Clear localStorage
     localStorage.removeItem(STORAGE_KEYS.ACTIVITIES);
@@ -317,6 +390,7 @@ const ThirdPage: React.FC = () => {
     localStorage.removeItem(STORAGE_KEYS.AI_RESULTS);
     localStorage.removeItem(STORAGE_KEYS.SELECTED_YEAR);
     localStorage.removeItem(STORAGE_KEYS.SELECTED_MONTH);
+    localStorage.removeItem(STORAGE_KEYS.DUPLICATE_ACTIVITIES); // NEW: Clear duplicate storage
     
     setSnackbar({ 
       open: true, 
@@ -373,14 +447,14 @@ const ThirdPage: React.FC = () => {
         flexDirection: 'column'
       }}>
         <Typography variant="h3" component="h1" gutterBottom color="primary" align="center">
-          Date-Based Data Processing & Review
+          Date-Based Existing Data Processing & Review
         </Typography>
         <Typography variant="h6" component="p" gutterBottom align="center" sx={{ mb: 4 }}>
           Process your data by date range using AI and automation, then review the results.
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* NEW: Button to navigate to Page 1 (Data Entry) */}
+          {/* Button to navigate to Page 1 (Data Entry) */}
           <Button 
             variant="contained" 
             onClick={() => navigate('/page1')}
@@ -390,7 +464,6 @@ const ThirdPage: React.FC = () => {
             Back to Data Entry
           </Button>
           
-          {/* UPDATED: Changed to outlined variant */}
           <Button 
             variant="outlined" 
             onClick={() => navigate('/page2')}
@@ -400,7 +473,7 @@ const ThirdPage: React.FC = () => {
           </Button>
 
           {/* Clear Data Button - Only show when there's data */}
-          {(activities.length > 0 || selectedYear || selectedMonth) && (
+          {(activities.length > 0 || selectedYear || selectedMonth || duplicateActivities.length > 0) && ( // UPDATED: Check duplicateActivities too
             <Button 
               variant="outlined" 
               color="warning"
@@ -418,6 +491,15 @@ const ThirdPage: React.FC = () => {
             variant="outlined"
             sx={{ ml: activities.length > 0 || selectedYear || selectedMonth ? 0 : 'auto' }}
           />
+          
+          {/* NEW: Duplicate records chip */}
+          {showDuplicateManagement && (
+            <Chip 
+              label={`${duplicateActivities.length} duplicate records`}
+              color={duplicateActivities.length > 0 ? "warning" : "default"}
+              variant="outlined"
+            />
+          )}
         </Box>
 
         {/* Date Selection Filters */}
@@ -463,7 +545,7 @@ const ThirdPage: React.FC = () => {
           </Grid>
         </Paper>
 
-        {/* Sequential Buttons Component */}
+        {/* UPDATED: Sequential Buttons Component with Step 5 */}
         <SequentialButtons
           currentStep={currentStep}
           selectedYear={selectedYear}
@@ -473,95 +555,131 @@ const ThirdPage: React.FC = () => {
           onStep2Click={handleAIProcessing}
           onStep3Click={handleCopyAIContent}
           onStep4Click={handleCompleteReview}
+          onStep5Click={handleCheckEditDuplicates} // NEW: Add duplicate management step
           step1Loading={loading}
           step2Loading={aiProcessing}
           step4Loading={saving}
+          step5Loading={loading} // Use loading state for duplicate fetch
         />
 
-        {/* Persistence Info Alert */}
-        {activities.length > 0 && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              <strong>Data Persistence:</strong> Your data is automatically saved and will persist even if you refresh or close this page.
-              {currentStep > 0 && ` Current step: ${currentStep}`}
-              {selectedYear && ` | Date filter: ${selectedYear}${selectedMonth ? '-' + selectedMonth : ''}`}
-            </Typography>
-          </Alert>
-        )}
-
-        {/* AI Processing Results */}
-        {aiResults && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              AI and Automation Processing Completed
-            </Typography>
-            <Typography variant="body2">
-              All AI services have been executed successfully. Check the console for detailed results.
-            </Typography>
-            {Object.entries(aiResults).map(([key, value]) => (
-              <Typography key={key} variant="body2" fontSize="0.8rem">
-                <strong>{key}:</strong> {value && typeof value === 'object' ? 'Completed' : String(value)}
+        {/* NEW: DUPLICATE MANAGEMENT COMPONENT */}
+        {showDuplicateManagement && (
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h5" color="primary">
+                Duplicate Record Management
               </Typography>
-            ))}
-          </Alert>
-        )}
-
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
-            <Typography sx={{ ml: 2 }}>Loading review data by date...</Typography>
-          </Box>
-        )}
-
-        {saving && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
-            <Typography sx={{ ml: 2 }}>Saving reviewed data...</Typography>
-          </Box>
-        )}
-
-        {error && !aiProcessing && !loading && !saving && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-
-        {!loading && !saving && !error && activities.length > 0 && (
-          <>
-            {/* Activity Summary Cards */}
-            <ActivitySummary activities={activities} />
-            
-            {/* Enhanced Activity Table */}
-            <ActivityTable 
-              activities={activities}
-              onRowClick={handleRowClick}
-              onUpdateRow={handleUpdateRow}
-              enableSearch={true}
-              enableSorting={true}
-              enablePagination={true}
-              enableExport={true}
-              loading={loading}
+              <Button 
+                variant="outlined" 
+                onClick={() => setShowDuplicateManagement(false)}
+              >
+                Back to Review List
+              </Button>
+            </Box>
+            <DuplicateManagement
+              activities={duplicateActivities}
+              onUpdateRow={handleUpdateDuplicateRow}
+              onSaveDuplicateRecords={handleSaveDuplicateRecords}
             />
+          </Box>
+        )}
+
+        {/* ONLY SHOW ORIGINAL CONTENT WHEN NOT IN DUPLICATE MANAGEMENT MODE */}
+        {!showDuplicateManagement && (
+          <>
+            {/* Persistence Info Alert */}
+            {activities.length > 0 && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>Data Persistence:</strong> Your data is automatically saved and will persist even if you refresh or close this page.
+                  {currentStep > 0 && ` Current step: ${currentStep}`}
+                  {selectedYear && ` | Date filter: ${selectedYear}${selectedMonth ? '-' + selectedMonth : ''}`}
+                </Typography>
+              </Alert>
+            )}
+
+            {/* AI Processing Results */}
+            {aiResults && (
+              <Alert severity="success" sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  AI and Automation Processing Completed
+                </Typography>
+                <Typography variant="body2">
+                  All AI services have been executed successfully. Check the console for detailed results.
+                </Typography>
+                {Object.entries(aiResults).map(([key, value]) => (
+                  <Typography key={key} variant="body2" fontSize="0.8rem">
+                    <strong>{key}:</strong> {value && typeof value === 'object' ? 'Completed' : String(value)}
+                  </Typography>
+                ))}
+              </Alert>
+            )}
+
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading review data by date...</Typography>
+              </Box>
+            )}
+
+            {saving && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Saving reviewed data...</Typography>
+              </Box>
+            )}
+
+            {duplicateSaving && ( // NEW: Duplicate saving indicator
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Saving duplicate records...</Typography>
+              </Box>
+            )}
+
+            {error && !aiProcessing && !loading && !saving && !duplicateSaving && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
+
+            {!loading && !saving && !duplicateSaving && !error && activities.length > 0 && (
+              <>
+                {/* Activity Summary Cards */}
+                <ActivitySummary activities={activities} />
+                
+                {/* Enhanced Activity Table */}
+                <ActivityTable 
+                  activities={activities}
+                  onRowClick={handleRowClick}
+                  onUpdateRow={handleUpdateRow}
+                  enableSearch={true}
+                  enableSorting={true}
+                  enablePagination={true}
+                  enableExport={true}
+                  loading={loading}
+                />
+              </>
+            )}
+
+            {!loading && !saving && !duplicateSaving && activities.length === 0 && !error && currentStep === 0 && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Select a year and click "Show Review List by Date" to load data for processing and analysis.
+              </Alert>
+            )}
+
+            {!loading && !saving && !duplicateSaving && activities.length === 0 && !error && currentStep > 0 && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                No records found for the selected date range: {selectedYear}{selectedMonth ? '-' + selectedMonth : ''}. 
+                Please select a different date range or check if data exists for this period.
+              </Alert>
+            )}
+
+            {!loading && !saving && !duplicateSaving && activities.length > 0 && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Showing {activities.length} record(s) from {selectedYear}{selectedMonth ? '-' + selectedMonth : ''}.
+              </Alert>
+            )}
           </>
-        )}
-
-        {!loading && !saving && activities.length === 0 && !error && currentStep === 0 && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Select a year and click "Show Review List by Date" to load data for processing and analysis.
-          </Alert>
-        )}
-
-        {!loading && !saving && activities.length === 0 && !error && currentStep > 0 && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            No records found for the selected date range: {selectedYear}{selectedMonth ? '-' + selectedMonth : ''}. 
-            Please select a different date range or check if data exists for this period.
-          </Alert>
-        )}
-
-        {!loading && !saving && activities.length > 0 && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Showing {activities.length} record(s) from {selectedYear}{selectedMonth ? '-' + selectedMonth : ''}.
-          </Alert>
         )}
 
         {/* Navigation button to Dashboard */}

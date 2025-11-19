@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Chip,
   Snackbar,
-  // CHANGED: Added Stack for better button layout
   Stack
 } from '@mui/material';
 
@@ -18,12 +17,14 @@ import { dataService } from '../services/dataService';
 import type { ActivityResponse } from '../types';
 import { ActivityTable, ActivitySummary } from '../components/Page2/TableComponents';
 import { SequentialButtons } from '../components/Page2/SequentialButtons';
+import { DuplicateManagement } from '../components/Page2/DuplicateManagement';
 
 // Local storage keys
 const STORAGE_KEYS = {
   ACTIVITIES: 'secondPage_activities',
   CURRENT_STEP: 'secondPage_currentStep',
-  AI_RESULTS: 'secondPage_aiResults'
+  AI_RESULTS: 'secondPage_aiResults',
+  DUPLICATE_ACTIVITIES: 'secondPage_duplicateActivities' // NEW: Storage for duplicate records
 };
 
 const SecondPage: React.FC = () => {
@@ -50,8 +51,16 @@ const SecondPage: React.FC = () => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_STEP);
     return saved ? parseInt(saved) : 0;
   });
-  
+
+  // NEW STATES FOR DUPLICATE MANAGEMENT
+  const [showDuplicateManagement, setShowDuplicateManagement] = useState(false);
+  const [duplicateStep, setDuplicateStep] = useState(0); // 0: not started, 1: check/edit, 2: copy AI, 3: save
   const [saving, setSaving] = useState(false);
+  const [duplicateSaving, setDuplicateSaving] = useState(false);
+  const [duplicateActivities, setDuplicateActivities] = useState<ActivityResponse[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.DUPLICATE_ACTIVITIES);
+    return saved ? JSON.parse(saved) : [];
+  }); // NEW: Separate state for duplicate records
 
   // Save to localStorage whenever activities, currentStep, or aiResults change
   useEffect(() => {
@@ -69,6 +78,11 @@ const SecondPage: React.FC = () => {
       localStorage.removeItem(STORAGE_KEYS.AI_RESULTS);
     }
   }, [aiResults]);
+
+  // NEW: Save duplicate activities to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DUPLICATE_ACTIVITIES, JSON.stringify(duplicateActivities));
+  }, [duplicateActivities]);
 
   const handleRowClick = (activity: ActivityResponse) => {
     console.log('Activity clicked:', activity);
@@ -88,6 +102,77 @@ const SecondPage: React.FC = () => {
     console.log('✅ Activity updated in state and localStorage');
   };
 
+  // NEW: Handle updates for duplicate activities
+  const handleUpdateDuplicateRow = (activityId: string, field: keyof ActivityResponse, value: string) => {
+    console.log(`🔄 Updating duplicate activity ${activityId}, field ${field} to:`, value);
+    
+    const updatedDuplicateActivities = duplicateActivities.map(activity => 
+      activity.id === activityId 
+        ? { ...activity, [field]: value }
+        : activity
+    );
+    
+    setDuplicateActivities(updatedDuplicateActivities);
+    console.log('✅ Duplicate activity updated in state and localStorage');
+  };
+
+  // UPDATED HANDLER FOR DUPLICATE MANAGEMENT
+  const handleCheckEditDuplicates = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔍 Fetching duplicate records from backend...');
+      const duplicateData = await dataService.getDuplicateRecords();
+      setDuplicateActivities(duplicateData);
+      setShowDuplicateManagement(true);
+      setDuplicateStep(1);
+      setSnackbar({ 
+        open: true, 
+        message: `Loaded ${duplicateData.length} duplicate records for management`, 
+        severity: 'success' 
+      });
+      console.log('✅ Duplicate records loaded:', duplicateData);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to fetch duplicate records';
+      setError(errorMessage);
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      console.error('❌ Error fetching duplicate records:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyAIToManual = () => {
+    // This will be handled by the DuplicateManagement component
+    setDuplicateStep(2);
+  };
+
+  const handleSaveDuplicateRecords = async (activitiesToSave: ActivityResponse[]) => {
+    try {
+      setDuplicateSaving(true);
+      // Use the same save method as complete review
+      const result = await dataService.saveReviewedData(activitiesToSave);
+      setDuplicateStep(3);
+      setSnackbar({ 
+        open: true, 
+        message: `Successfully saved ${activitiesToSave.length} duplicate records`, 
+        severity: 'success' 
+      });
+      return result;
+    } catch (error: any) {
+      setSnackbar({ 
+        open: true, 
+        message: `Failed to save duplicate records: ${error.message}`, 
+        severity: 'error' 
+      });
+      throw error;
+    } finally {
+      setDuplicateSaving(false);
+    }
+  };
+
+  // ... REST OF THE HANDLERS REMAIN EXACTLY THE SAME ...
   // Handle Review data fetching - STEP 2
   const handleReviewData = async () => {
     setLoading(true);
@@ -191,22 +276,12 @@ const SecondPage: React.FC = () => {
         throw new Error('No activities found to save');
       }
 
-      // REMOVED: Redundant data transformation - dataService handles this now
-      
       console.log('🔄 Sending activities directly to dataService for transformation');
       
       // Save all reviewed data using the dataService (which handles transformation)
       const saveResult = await dataService.saveReviewedData(activitiesToSave);
       
-      setCurrentStep(0); // Reset to initial step
-      
-      // Clear localStorage after successful save
-      localStorage.removeItem(STORAGE_KEYS.ACTIVITIES);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_STEP);
-      localStorage.removeItem(STORAGE_KEYS.AI_RESULTS);
-      
-      setActivities([]);
-      setAiResults(null);
+      setCurrentStep(4); // Move to step 5 (duplicate management)
       
       setSnackbar({ 
         open: true, 
@@ -240,11 +315,15 @@ const SecondPage: React.FC = () => {
     setCurrentStep(0);
     setAiResults(null);
     setError(null);
+    setShowDuplicateManagement(false);
+    setDuplicateStep(0);
+    setDuplicateActivities([]); // NEW: Clear duplicate activities
     
     // Clear localStorage
     localStorage.removeItem(STORAGE_KEYS.ACTIVITIES);
     localStorage.removeItem(STORAGE_KEYS.CURRENT_STEP);
     localStorage.removeItem(STORAGE_KEYS.AI_RESULTS);
+    localStorage.removeItem(STORAGE_KEYS.DUPLICATE_ACTIVITIES); // NEW: Clear duplicate storage
     
     setSnackbar({ 
       open: true, 
@@ -294,7 +373,7 @@ const SecondPage: React.FC = () => {
           </Button>
 
           {/* Clear Data Button - Only show when there's data */}
-          {activities.length > 0 && (
+          {(activities.length > 0 || duplicateActivities.length > 0) && (
             <Button 
               variant="outlined" 
               color="warning"
@@ -311,96 +390,140 @@ const SecondPage: React.FC = () => {
             variant="outlined"
             sx={{ ml: 'auto' }}
           />
+          {/* NEW: Duplicate records chip */}
+          {showDuplicateManagement && (
+            <Chip 
+              label={`${duplicateActivities.length} duplicate records`}
+              color={duplicateActivities.length > 0 ? "warning" : "default"}
+              variant="outlined"
+            />
+          )}
         </Box>
 
-        {/* Sequential Buttons Component */}
+        {/* UPDATED: Sequential Buttons Component with Step 5 */}
         <SequentialButtons
           currentStep={currentStep}
           onStep1Click={handleAIProcessing}
           onStep2Click={handleReviewData}
           onStep3Click={handleCopyAIContent}
           onStep4Click={handleCompleteReview}
+          onStep5Click={handleCheckEditDuplicates} // UPDATED: Now fetches from API
           step1Loading={aiProcessing}
           step2Loading={loading}
           step4Loading={saving}
+          step5Loading={loading} // Use loading state for duplicate fetch
         />
 
-        {/* Persistence Info Alert */}
-        {activities.length > 0 && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              <strong>Data Persistence:</strong> Your data is automatically saved and will persist even if you refresh or close this page.
-              {currentStep > 0 && ` Current step: ${currentStep}`}
-            </Typography>
-          </Alert>
-        )}
-
-        {/* AI Processing Results */}
-        {aiResults && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              AI and Automation Processing Completed
-            </Typography>
-            <Typography variant="body2">
-              All AI services have been executed successfully. Check the console for detailed results.
-            </Typography>
-            {Object.entries(aiResults).map(([key, value]) => (
-              <Typography key={key} variant="body2" fontSize="0.8rem">
-                <strong>{key}:</strong> {value && typeof value === 'object' ? 'Completed' : String(value)}
+        {/* UPDATED: DUPLICATE MANAGEMENT COMPONENT */}
+        {showDuplicateManagement && (
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h5" color="primary">
+                Duplicate Record Management
               </Typography>
-            ))}
-          </Alert>
-        )}
-
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
-            <Typography sx={{ ml: 2 }}>Loading review data...</Typography>
-          </Box>
-        )}
-
-        {saving && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
-            <Typography sx={{ ml: 2 }}>Saving reviewed data...</Typography>
-          </Box>
-        )}
-
-        {error && !aiProcessing && !loading && !saving && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-
-        {!loading && !saving && !error && activities.length > 0 && (
-          <>
-            {/* Activity Summary Cards */}
-            <ActivitySummary activities={activities} />
-            
-            {/* Enhanced Activity Table */}
-            <ActivityTable 
-              activities={activities}
-              onRowClick={handleRowClick}
-              onUpdateRow={handleUpdateRow}
-              enableSearch={true}
-              enableSorting={true}
-              enablePagination={true}
-              enableExport={true}
-              loading={loading}
+              <Button 
+                variant="outlined" 
+                onClick={() => setShowDuplicateManagement(false)}
+              >
+                Back to Review List
+              </Button>
+            </Box>
+            <DuplicateManagement
+              activities={duplicateActivities} // CHANGED: Use duplicateActivities instead of activities
+              onUpdateRow={handleUpdateDuplicateRow} // CHANGED: Use duplicate update handler
+              onSaveDuplicateRecords={handleSaveDuplicateRecords}
             />
+          </Box>
+        )}
+
+        {/* ONLY SHOW ORIGINAL CONTENT WHEN NOT IN DUPLICATE MANAGEMENT MODE */}
+        {!showDuplicateManagement && (
+          <>
+            {/* Persistence Info Alert */}
+            {activities.length > 0 && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>Data Persistence:</strong> Your data is automatically saved and will persist even if you refresh or close this page.
+                  {currentStep > 0 && ` Current step: ${currentStep}`}
+                </Typography>
+              </Alert>
+            )}
+
+            {/* AI Processing Results */}
+            {aiResults && (
+              <Alert severity="success" sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  AI and Automation Processing Completed
+                </Typography>
+                <Typography variant="body2">
+                  All AI services have been executed successfully. Check the console for detailed results.
+                </Typography>
+                {Object.entries(aiResults).map(([key, value]) => (
+                  <Typography key={key} variant="body2" fontSize="0.8rem">
+                    <strong>{key}:</strong> {value && typeof value === 'object' ? 'Completed' : String(value)}
+                  </Typography>
+                ))}
+              </Alert>
+            )}
+
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading review data...</Typography>
+              </Box>
+            )}
+
+            {saving && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Saving reviewed data...</Typography>
+              </Box>
+            )}
+
+            {duplicateSaving && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Saving duplicate records...</Typography>
+              </Box>
+            )}
+
+            {error && !aiProcessing && !loading && !saving && !duplicateSaving && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
+
+            {!loading && !saving && !duplicateSaving && !error && activities.length > 0 && (
+              <>
+                {/* Activity Summary Cards */}
+                <ActivitySummary activities={activities} />
+                
+                {/* Enhanced Activity Table */}
+                <ActivityTable 
+                  activities={activities}
+                  onRowClick={handleRowClick}
+                  onUpdateRow={handleUpdateRow}
+                  enableSearch={true}
+                  enableSorting={true}
+                  enablePagination={true}
+                  enableExport={true}
+                  loading={loading}
+                />
+              </>
+            )}
+
+            {!loading && !saving && !duplicateSaving && activities.length === 0 && !error && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Click "Show New Review List" to load data for processing and analysis.
+              </Alert>
+            )}
+
+            {!loading && !saving && !duplicateSaving && activities.length > 0 && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Showing {activities.length} record(s) from the review database.
+              </Alert>
+            )}
           </>
-        )}
-
-        {!loading && !saving && activities.length === 0 && !error && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Click "Show New Review List" to load data for processing and analysis.
-          </Alert>
-        )}
-
-        {!loading && !saving && activities.length > 0 && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Showing {activities.length} record(s) from the review database.
-          </Alert>
         )}
 
         {/* CHANGED: Added navigation button to Page 3 at the bottom */}

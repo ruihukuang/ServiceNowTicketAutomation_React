@@ -8,16 +8,19 @@ interface SequentialButtonsProps {
   onStep2Click: () => void;
   onStep3Click: () => void;
   onStep4Click: () => void;
+  onStep5Click?: () => void; // NEW: Optional step 5 for duplicate management
   step1Loading?: boolean;
   step2Loading?: boolean;
   step4Loading?: boolean;
+  step5Loading?: boolean; // NEW: Loading state for step 5
 }
 
 const steps = [
   'AI and Automation Processing',
   'Show New Review List',
   'Copy AI Content to Review Fields',
-  'Complete Review & Save Data'
+  'Complete Review & Save Data',
+  'Manage Duplicate Records' // NEW STEP
 ];
 
 export const SequentialButtons: React.FC<SequentialButtonsProps> = ({
@@ -26,9 +29,11 @@ export const SequentialButtons: React.FC<SequentialButtonsProps> = ({
   onStep2Click,
   onStep3Click,
   onStep4Click,
+  onStep5Click, // NEW
   step1Loading = false,
   step2Loading = false,
   step4Loading = false,
+  step5Loading = false, // NEW
 }) => {
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
@@ -84,6 +89,20 @@ export const SequentialButtons: React.FC<SequentialButtonsProps> = ({
         >
           {step4Loading ? 'Saving...' : '4. Complete Review'}
         </Button>
+
+        {/* NEW: Step 5 Button - Duplicate Management */}
+        {onStep5Click && (
+          <Button
+            variant={currentStep >= 4 ? "contained" : "outlined"}
+            onClick={onStep5Click}
+            disabled={currentStep < 4 || step5Loading}
+            size="large"
+            sx={{ minWidth: '200px' }}
+            color="secondary"
+          >
+            {step5Loading ? 'Managing...' : '5. Manage Duplicates'}
+          </Button>
+        )}
       </Box>
 
       <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>

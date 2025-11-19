@@ -89,7 +89,7 @@ export const aiProcessingExistingService = {
       // 5. AI Duplicate with date filtering - CORRECTED URL
       console.log('🔄 Checking duplicates with AI...');
       try {
-        const aiDuplicateResponse = await apiClient.post(`/DuplicateDate/AI_Duplicate_date${urlSuffix}`);
+        const aiDuplicateResponse = await apiClient.post(`/DuplicateUpdate/AI_Duplicate_update`);
         results.AiExistingDuplicate = aiDuplicateResponse.data;
         console.log('✅ AI duplicate check completed:', aiDuplicateResponse.data);
       } catch (error) {
