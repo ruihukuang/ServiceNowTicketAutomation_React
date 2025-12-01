@@ -16,6 +16,255 @@ const apiClient = axios.create({
 });
 
 export const dataService = {
+  // Dashboard API Methods
+
+  // CHANGED: Met SLA by date and service owner - returns percentage like "100.00%"
+  // CHANGED: Make month parameter optional
+  async getMetSLA(year: string, month?: string, serviceOwner?: string): Promise<number> {
+    try {
+      console.log(`🔍 Fetching Met SLA: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerMetSLA', { params });
+      
+      // API returns string like "100.00%"
+      const metSlaValue = response.data;
+      console.log('✅ Met SLA API response:', metSlaValue);
+      
+      // Convert percentage string to number (remove % and convert to float)
+      if (typeof metSlaValue === 'string') {
+        const numericValue = parseFloat(metSlaValue.replace('%', ''));
+        return isNaN(numericValue) ? 0 : numericValue;
+      } else if (typeof metSlaValue === 'number') {
+        return metSlaValue;
+      }
+      return 0;
+    } catch (error) {
+      console.error('❌ Error fetching Met SLA:', error);
+      return 0;
+    }
+  },
+
+  // CHANGED: Average extra days after SLA - returns number like 8.50
+  // CHANGED: Make month parameter optional
+  async getExtraDaysAfterSLA(year: string, month?: string, serviceOwner?: string): Promise<number> {
+    try {
+      console.log(`🔍 Fetching Extra Days: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerExtraDaysAfterSLA', { params });
+      
+      // API returns number like 8.50
+      console.log('✅ Extra Days API response:', response.data);
+      const extraDays = parseFloat(response.data);
+      return isNaN(extraDays) ? 0 : extraDays;
+    } catch (error) {
+      console.error('❌ Error fetching extra days:', error);
+      return 0;
+    }
+  },
+
+  // CHANGED: Priority distribution - returns array [P1, P2, P3, P4] like [0, 0, 0, 1]
+  // CHANGED: Make month parameter optional
+  async getPriorityDistribution(year: string, month?: string, serviceOwner?: string): Promise<Record<string, number>> {
+    try {
+      console.log(`🔍 Fetching Priority: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerPriority', { params });
+      
+      // API returns array [P1, P2, P3, P4]
+      console.log('✅ Priority API response (array):', response.data);
+      
+      // Convert array to object format
+      const priorityArray = response.data || [0, 0, 0, 0];
+      return {
+        P1: priorityArray[0] || 0,
+        P2: priorityArray[1] || 0,
+        P3: priorityArray[2] || 0,
+        P4: priorityArray[3] || 0
+      };
+    } catch (error) {
+      console.error('❌ Error fetching priority distribution:', error);
+      return { P1: 0, P2: 0, P3: 0, P4: 0 };
+    }
+  },
+
+  // CHANGED: Non-functional team inclusion - returns { "extra_teams": 1, "no_extra_teams": 1 }
+  // CHANGED: Make month parameter optional
+  async getNonFunctionalTeamInclusion(year: string, month?: string, serviceOwner?: string): Promise<{ included: number, notIncluded: number }> {
+    try {
+      console.log(`🔍 Fetching Non-Functional Team: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerExtraNonFuntionalTeam', { params });
+      
+      // API returns { "extra_teams": 1, "no_extra_teams": 1 }
+      console.log('✅ Non-Functional Team API response:', response.data);
+      
+      // Map API response to our internal format
+      const apiData = response.data || { extra_teams: 0, no_extra_teams: 0 };
+      return {
+        included: apiData.extra_teams || 0,
+        notIncluded: apiData.no_extra_teams || 0
+      };
+    } catch (error) {
+      console.error('❌ Error fetching non-functional team data:', error);
+      return { included: 0, notIncluded: 0 };
+    }
+  },
+
+  // CHANGED: Assigned team responsible - returns { "responsible_aissigned_team": 1, "non_responsible_aissigned_team": 1 }
+  // CHANGED: Make month parameter optional
+  async getAssignedTeamResponsible(year: string, month?: string, serviceOwner?: string): Promise<{ yes: number, no: number }> {
+    try {
+      console.log(`🔍 Fetching Assigned Team Responsible: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerAssignedTeamResponsible', { params });
+      
+      // API returns { "responsible_aissigned_team": 1, "non_responsible_aissigned_team": 1 }
+      console.log('✅ Assigned Team Responsible API response:', response.data);
+      
+      // Map API response to our internal format
+      const apiData = response.data || { responsible_aissigned_team: 0, non_responsible_aissigned_team: 0 };
+      return {
+        yes: apiData.responsible_aissigned_team || 0,
+        no: apiData.non_responsible_aissigned_team || 0
+      };
+    } catch (error) {
+      console.error('❌ Error fetching assigned team responsible:', error);
+      return { yes: 0, no: 0 };
+    }
+  },
+
+  // CHANGED: Assigned team fixing issues - returns { "fixing_issues_assigned_team": 1, "non_fixing_issues_assigned_team": 1 }
+  // CHANGED: Make month parameter optional
+  async getAssignedTeamFixingIssues(year: string, month?: string, serviceOwner?: string): Promise<{ yes: number, no: number }> {
+    try {
+      console.log(`🔍 Fetching Assigned Team Fixing Issues: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerAssignedTeamFixingIssues', { params });
+      
+      // API returns { "fixing_issues_assigned_team": 1, "non_fixing_issues_assigned_team": 1 }
+      console.log('✅ Assigned Team Fixing Issues API response:', response.data);
+      
+      // Map API response to our internal format
+      const apiData = response.data || { fixing_issues_assigned_team: 0, non_fixing_issues_assigned_team: 0 };
+      return {
+        yes: apiData.fixing_issues_assigned_team || 0,
+        no: apiData.non_fixing_issues_assigned_team || 0
+      };
+    } catch (error) {
+      console.error('❌ Error fetching assigned team fixing issues:', error);
+      return { yes: 0, no: 0 };
+    }
+  },
+
+  // CHANGED: System distribution - returns { "Jupyterhub": 2, "Zeppelin": 0 }
+  // CHANGED: Make month parameter optional
+  async getSystemDistribution(year: string, month?: string, serviceOwner?: string): Promise<{ jupyterhub: number, zeppelin: number }> {
+    try {
+      console.log(`🔍 Fetching System Distribution: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateServiceOwnerSystem', { params });
+      
+      // API returns { "Jupyterhub": 2, "Zeppelin": 0 }
+      console.log('✅ System Distribution API response:', response.data);
+      
+      // Map API response to our internal format (camelCase)
+      const apiData = response.data || { Jupyterhub: 0, Zeppelin: 0 };
+      return {
+        jupyterhub: apiData.Jupyterhub || 0,
+        zeppelin: apiData.Zeppelin || 0
+      };
+    } catch (error) {
+      console.error('❌ Error fetching system distribution:', error);
+      return { jupyterhub: 0, zeppelin: 0 };
+    }
+  },
+
+  // CHANGED: Issues breakdown by category - returns object with issue categories as keys
+  // CHANGED: Make month parameter optional
+  async getIssuesBreakdown(year: string, month?: string, serviceOwner?: string): Promise<Record<string, number>> {
+    try {
+      console.log(`🔍 Fetching Issues Breakdown: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateIssues', { params });
+      
+      // API returns object like: {"Authentication & Authorization":2,"Network":0,...}
+      console.log('✅ Issues Breakdown API response:', response.data);
+      
+      // Return the object as-is
+      return response.data || {};
+    } catch (error) {
+      console.error('❌ Error fetching issues breakdown:', error);
+      return {};
+    }
+  },
+
+  // CHANGED: Duplicate groups - returns { "duplicates": 1 }
+  // CHANGED: Make month parameter optional
+  async getDuplicateGroups(year: string, month?: string, serviceOwner?: string): Promise<number> {
+    try {
+      console.log(`🔍 Fetching Duplicate Groups: Year=${year}, Month=${month || 'N/A'}, Service Owner=${serviceOwner || 'N/A'}`);
+      
+      // CHANGED: Only include month in params if it's provided
+      const params: any = { year: year };
+      if (month) params.month = month;
+      if (serviceOwner) params.ServiceOwner = serviceOwner;
+      
+      const response = await apiClient.get('/FrontEnd/byDateDuplicates', { params });
+      
+      // API returns { "duplicates": 1 }
+      console.log('✅ Duplicate Groups API response:', response.data);
+      
+      // Extract duplicates count from response
+      const apiData = response.data || { duplicates: 0 };
+      return apiData.duplicates || 0;
+    } catch (error) {
+      console.error('❌ Error fetching duplicate groups:', error);
+      return 0;
+    }
+  },
+
+  // Existing methods continue below (unchanged)...
+
   // NEW: Get duplicate records from backend
   async getDuplicateRecords(): Promise<ActivityResponse[]> {
     console.log('🔍 Fetching duplicate records from backend...');
