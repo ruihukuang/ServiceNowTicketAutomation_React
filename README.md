@@ -13,7 +13,7 @@ This interface follows a strictly sequential workflow. Each stage requires manua
 
 ![Alt text](/React/Data_Process.png)
 
-The final page is an analytics dashboard designed for Project Managers to monitor incident lifecycles across specific timeframes (months/years). Key metrics include SLA performance, system failure points, and duplicate ticket identification. The dashboard also visualizes responsibility mapping and resolution outcomes for assigned teams to optimize operational workflows. The provided screenshots demonstrate the dashboard interface populated with data from two sample database records.
+The final page is an analytics dashboard designed for Project Managers who are usually service owners of multiple systems/platforms to monitor incident lifecycles across specific timeframes (months/years). Key metrics include SLA performance, system failure points, and duplicate ticket identification. The dashboard also visualizes responsibility mapping and resolution outcomes for assigned teams to optimize operational workflows. The provided screenshots demonstrate the dashboard interface populated with data from two sample database records.
 
 ![Alt text](/React/dashboard-1.png)
 
