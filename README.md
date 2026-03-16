@@ -3,11 +3,11 @@
 
 This website has three pages. 
 
-The initial interface facilitates record creation. While the system is designed to support automated retrieval via the ServiceNow API, the current implementation focuses on manual data entry.
+The initial page manages ServiceNow record entry and updates. Although the ServiceNow API can retrieve all fields except for Responsible Team, the current implementation relies entirely on manual data entry.
 
 ![Alt text](/React/data_entry_management.png)
 
-The second page invokes a .NET service to process pending records using either rule-based automation or an Ollama-hosted LLM. The interface enables manual validation of AI-generated insights—specifically System, Root Cause, Short Summary, and Duplicate Identification—for each ServiceNow incident ticket. Once reviewed, the finalized data is persisted to the database via the .NET backend.
+The second page invokes a .NET service to process pending records using either rule-based automation or an Ollama-hosted LLM. The interface enables manual validation of AI-generated insights—specifically System, Root Cause, Short Summary, and Duplicate Identification—for each ServiceNow incident ticket. Once reviewed, the finalized data is sent to the database via the .NET backend.
 
 ![Alt text](/React/Data_Process.png)
 
